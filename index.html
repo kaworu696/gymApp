@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymLog</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>GymLog</h1>
+  </header>
+
+  <main class="container">
+    <!-- Navegación por pestañas -->
+     <nav class="tab-nav">
+      <button id="tab-routines-btn" class="tab-btn active">Mis Rutinas</button>
+      <button id="tab-create-btn" class="tab-btn">Nueva Rutina</button>
+      <button id="tab-metrics-btn" class="tab-btn">Métricas</button>
+    </nav>
+
+    <!-- VISTA 1: Lista de Rutinas -->
+    <section id="view-routines" class="view active">
+      <h2>Rutinas Registradas</h2>
+      <div id="routines-list" class="routines-list">
+        <!-- Las tarjetas de rutinas se cargarán dinámicamente con JavaScript -->
+        <p class="empty-msg">No hay rutinas creadas.</p>
+      </div>
+    </section>
+
+    <!-- VISTA 2: Formulario de Creación de Rutina -->
+    <section id="view-create" class="view">
+      <h2>Crear Rutina</h2>
+      <form id="routine-form">
+        <div class="form-group">
+          <label for="routine-name">Nombre de la Rutina</label>
+          <input type="text" id="routine-name" placeholder="Ej. Día 1: Empuje (Pecho/Tríceps)" required>
+        </div>
+
+        <div class="form-group">
+          <label>Ejercicios</label>
+          <div id="exercise-inputs-container">
+            <!-- Campos dinámicos para nombres de ejercicios -->
+            <div class="exercise-input-row">
+              <input type="text" class="exercise-name-input" placeholder="Ej. Press de Banca" required>
+              <button type="button" class="btn-icon remove-exercise-btn">&times;</button>
+            </div>
+          </div>
+          <button type="button" id="add-exercise-btn" class="btn btn-secondary">+ Agregar Ejercicio</button>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Guardar Rutina</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- VISTA 3: Entrenamiento Activo -->
+    <section id="view-workout" class="view">
+      <div class="workout-header">
+        <h2 id="active-routine-name">Entrenamiento</h2>
+        <div id="workout-timer" class="timer">00:00:00</div>
+      </div>
+      
+      <div id="active-exercises-container">
+        <!-- Los ejercicios y series se generarán aquí con JavaScript -->
+      </div>
+      
+      <div class="form-actions" style="margin-top: 24px;">
+        <button id="finish-workout-btn" class="btn btn-primary">Finalizar y Guardar</button>
+        <button id="cancel-workout-btn" class="btn btn-secondary" style="border-color: var(--danger-color); color: var(--danger-color);">Cancelar</button>
+      </div>
+    </section>
+
+    <!-- VISTA 4: Métricas y Récords -->
+    <section id="view-metrics" class="view">
+      <h2>Historial de Sesiones</h2>
+      <div id="history-container" class="metrics-list"></div>
+
+      <h2 style="margin-top: 24px;">Récords Personales (PR)</h2>
+      <div id="prs-container" class="metrics-list"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
