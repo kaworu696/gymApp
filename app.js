@@ -187,15 +187,6 @@ if ('serviceWorker' in navigator) {
 }
 
 
-// --- LÓGICA DE ENTRENAMIENTO ---
-
-function formatTime(totalSeconds) {
-  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSeconds % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
 // --- LÓGICA DE CRONÓMETRO CORREGIDA ---
 
 let timerInterval;
@@ -227,9 +218,6 @@ function stopTimer() {
   clearInterval(timerInterval);
 }
 
-function stopTimer() {
-  clearInterval(timerInterval);
-}
 
 function startWorkout(id) {
   const routine = routines.find(r => r.id === id);
