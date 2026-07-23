@@ -196,13 +196,35 @@ function formatTime(totalSeconds) {
   return `${h}:${m}:${s}`;
 }
 
+// --- LÓGICA DE CRONÓMETRO CORREGIDA ---
+
+let timerInterval;
+let startTime = 0;
+let workoutSeconds = 0;
+
+function formatTime(totalSeconds) {
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSeconds % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
 function startTimer() {
+  startTime = Date.now();
   workoutSeconds = 0;
-  workoutTimerDisplay.textContent = formatTime(workoutSeconds);
+  workoutTimerDisplay.textContent = formatTime(0);
+
+  if (timerInterval) clearInterval(timerInterval);
+
   timerInterval = setInterval(() => {
-    workoutSeconds++;
+    const currentTime = Date.now();
+    workoutSeconds = Math.floor((currentTime - startTime) / 1000);
     workoutTimerDisplay.textContent = formatTime(workoutSeconds);
   }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
 }
 
 function stopTimer() {
