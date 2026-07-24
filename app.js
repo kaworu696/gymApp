@@ -5,53 +5,57 @@ let routines = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 // 2. Referencias a Elementos del DOM
 const tabRoutinesBtn = document.getElementById('tab-routines-btn');
 const tabCreateBtn = document.getElementById('tab-create-btn');
+const tabMetricsBtn = document.getElementById('tab-metrics-btn');
+
 const viewRoutines = document.getElementById('view-routines');
 const viewCreate = document.getElementById('view-create');
+const viewMetrics = document.getElementById('view-metrics');
+const viewWorkout = document.getElementById('view-workout');
+
 const routinesList = document.getElementById('routines-list');
 const routineForm = document.getElementById('routine-form');
 const addExerciseBtn = document.getElementById('add-exercise-btn');
 const exerciseInputsContainer = document.getElementById('exercise-inputs-container');
 
-const viewWorkout = document.getElementById('view-workout');
 const activeExercisesContainer = document.getElementById('active-exercises-container');
 const workoutTimerDisplay = document.getElementById('workout-timer');
 const activeRoutineName = document.getElementById('active-routine-name');
 
-let timerInterval;
-let workoutSeconds = 0;
-let activeRoutineId = null;
-
-const tabMetricsBtn = document.getElementById('tab-metrics-btn');
-const viewMetrics = document.getElementById('view-metrics');
 const historyContainer = document.getElementById('history-container');
 const prsContainer = document.getElementById('prs-container');
 
+// Variables de estado
+let timerInterval;
+let startTime = 0;
+let workoutSeconds = 0;
+let activeRoutineId = null;
+
+// 3. Navegación por pestañas
 function switchTab(tab) {
-  // Ocultar todo
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
   if (tab === 'routines') {
-    tabRoutinesBtn.classList.add('active');
-    viewRoutines.classList.add('active');
+    if (tabRoutinesBtn) tabRoutinesBtn.classList.add('active');
+    if (viewRoutines) viewRoutines.classList.add('active');
     renderRoutines();
   } else if (tab === 'create') {
-    tabCreateBtn.classList.add('active');
-    viewCreate.classList.add('active');
+    if (tabCreateBtn) tabCreateBtn.classList.add('active');
+    if (viewCreate) viewCreate.classList.add('active');
   } else if (tab === 'metrics') {
-    tabMetricsBtn.classList.add('active');
-    viewMetrics.classList.add('active');
-    renderMetrics(); // Llamada al cálculo de datos
+    if (tabMetricsBtn) tabMetricsBtn.classList.add('active');
+    if (viewMetrics) viewMetrics.classList.add('active');
+    renderMetrics();
   }
 }
 
-tabMetricsBtn.addEventListener('click', () => switchTab('metrics'));
-
-tabRoutinesBtn.addEventListener('click', () => switchTab('routines'));
-tabCreateBtn.addEventListener('click', () => switchTab('create'));
+if (tabRoutinesBtn) tabRoutinesBtn.addEventListener('click', () => switchTab('routines'));
+if (tabCreateBtn) tabCreateBtn.addEventListener('click', () => switchTab('create'));
+if (tabMetricsBtn) tabMetricsBtn.addEventListener('click', () => switchTab('metrics'));
 
 // 4. Gestión Dinámica de Entradas de Ejercicios
 function createExerciseInput() {
+  if (!exerciseInputsContainer) return;
   const row = document.createElement('div');
   row.className = 'exercise-input-row';
   row.innerHTML = `
@@ -59,7 +63,6 @@ function createExerciseInput() {
     <button type="button" class="btn-icon remove-exercise-btn">&times;</button>
   `;
   
-  // Añadir evento al botón de eliminar de esta fila
   row.querySelector('.remove-exercise-btn').addEventListener('click', () => {
     row.remove();
   });
@@ -67,58 +70,63 @@ function createExerciseInput() {
   exerciseInputsContainer.appendChild(row);
 }
 
-addExerciseBtn.addEventListener('click', createExerciseInput);
+if (addExerciseBtn) {
+  addExerciseBtn.addEventListener('click', createExerciseInput);
+}
 
-// Asignar evento al botón de eliminar inicial definido en el HTML
-document.querySelector('.remove-exercise-btn').addEventListener('click', function(e) {
-  e.target.parentElement.remove();
-});
+// Asignación segura del evento de eliminación inicial
+const initialRemoveBtn = document.querySelector('.remove-exercise-btn');
+if (initialRemoveBtn) {
+  initialRemoveBtn.addEventListener('click', function(e) {
+    e.target.parentElement.remove();
+  });
+}
 
 // 5. Lógica para Guardar una Rutina
-routineForm.addEventListener('submit', (e) => {
-  e.preventDefault(); // Evita que la página se recargue
-  
-  const routineName = document.getElementById('routine-name').value.trim();
-  const exerciseInputs = document.querySelectorAll('.exercise-name-input');
-  
-  // Extraer valores de los inputs, limpiarlos y filtrar vacíos
-  const exercises = Array.from(exerciseInputs)
-                         .map(input => input.value.trim())
-                         .filter(val => val !== '');
-  
-  if (exercises.length === 0) {
-    alert('Debes agregar al menos un ejercicio válido.');
-    return;
-  }
+if (routineForm) {
+  routineForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const routineNameInput = document.getElementById('routine-name');
+    const routineName = routineNameInput ? routineNameInput.value.trim() : '';
+    const exerciseInputs = document.querySelectorAll('.exercise-name-input');
+    
+    const exercises = Array.from(exerciseInputs)
+                           .map(input => input.value.trim())
+                           .filter(val => val !== '');
+    
+    if (exercises.length === 0) {
+      alert('Debes agregar al menos un ejercicio válido.');
+      return;
+    }
 
-  // Crear objeto de rutina
-  const newRoutine = {
-    id: 'r_' + Date.now(), // Generación de ID único basado en tiempo
-    name: routineName,
-    exercises: exercises
-  };
+    const newRoutine = {
+      id: 'r_' + Date.now(),
+      name: routineName,
+      exercises: exercises
+    };
 
-  // Actualizar memoria y LocalStorage
-  routines.push(newRoutine);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(routines));
-  
-  // Limpiar formulario y reiniciar campos de ejercicio
-  routineForm.reset();
-  exerciseInputsContainer.innerHTML = '';
-  createExerciseInput(); // Deja un campo vacío por defecto
-  
-  // Volver a la vista de rutinas
-  switchTab('routines');
-});
+    routines.push(newRoutine);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(routines));
+    
+    routineForm.reset();
+    exerciseInputsContainer.innerHTML = '';
+    createExerciseInput();
+    
+    switchTab('routines');
+  });
+}
 
 // 6. Lógica para Renderizar Rutinas en Pantalla
 function renderRoutines() {
+  if (!routinesList) return;
+
   if (routines.length === 0) {
     routinesList.innerHTML = '<p class="empty-msg">No hay rutinas creadas.</p>';
     return;
   }
 
-  routinesList.innerHTML = ''; // Limpiar lista actual
+  routinesList.innerHTML = '';
   
   routines.forEach(routine => {
     const card = document.createElement('div');
@@ -134,28 +142,21 @@ function renderRoutines() {
       list.appendChild(li);
     });
     
-    // Botón para iniciar entrenamiento
     const startBtn = document.createElement('button');
     startBtn.textContent = 'Comenzar Entrenamiento';
     startBtn.className = 'btn btn-primary';
     startBtn.style.marginTop = '12px';
     startBtn.addEventListener('click', () => startWorkout(routine.id));
 
-    // Botón de eliminación
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Eliminar Rutina';
     deleteBtn.className = 'btn btn-secondary';
     deleteBtn.style.borderColor = 'var(--danger-color)';
     deleteBtn.style.color = 'var(--danger-color)';
-    // ... (mantén el EventListener del deleteBtn que ya tenías)
-    
-    card.appendChild(title);
-    card.appendChild(list);
-    card.appendChild(startBtn); // Añadido
-    card.appendChild(deleteBtn);
+    deleteBtn.style.marginTop = '8px';
     
     deleteBtn.addEventListener('click', () => {
-      if(confirm(`¿Eliminar la rutina "${routine.name}"?`)) {
+      if (confirm(`¿Eliminar la rutina "${routine.name}"?`)) {
         routines = routines.filter(r => r.id !== routine.id);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(routines));
         renderRoutines();
@@ -164,35 +165,14 @@ function renderRoutines() {
 
     card.appendChild(title);
     card.appendChild(list);
+    card.appendChild(startBtn);
     card.appendChild(deleteBtn);
     
     routinesList.appendChild(card);
   });
 }
 
-// 7. Inicialización al cargar la página
-renderRoutines();
-
-// 8. Registro del Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(registration => {
-        console.log('ServiceWorker registrado:', registration.scope);
-      })
-      .catch(error => {
-        console.error('Error al registrar ServiceWorker:', error);
-      });
-  });
-}
-
-
-// --- LÓGICA DE CRONÓMETRO CORREGIDA ---
-
-let timerInterval;
-let startTime = 0;
-let workoutSeconds = 0;
-
+// 7. Lógica de Cronómetro
 function formatTime(totalSeconds) {
   const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
   const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
@@ -203,14 +183,14 @@ function formatTime(totalSeconds) {
 function startTimer() {
   startTime = Date.now();
   workoutSeconds = 0;
-  workoutTimerDisplay.textContent = formatTime(0);
+  if (workoutTimerDisplay) workoutTimerDisplay.textContent = formatTime(0);
 
   if (timerInterval) clearInterval(timerInterval);
 
   timerInterval = setInterval(() => {
     const currentTime = Date.now();
     workoutSeconds = Math.floor((currentTime - startTime) / 1000);
-    workoutTimerDisplay.textContent = formatTime(workoutSeconds);
+    if (workoutTimerDisplay) workoutTimerDisplay.textContent = formatTime(workoutSeconds);
   }, 1000);
 }
 
@@ -218,14 +198,14 @@ function stopTimer() {
   clearInterval(timerInterval);
 }
 
-
+// 8. Lógica de Entrenamiento Activo
 function startWorkout(id) {
   const routine = routines.find(r => r.id === id);
   if (!routine) return;
 
   activeRoutineId = routine.id;
-  activeRoutineName.textContent = routine.name;
-  activeExercisesContainer.innerHTML = '';
+  if (activeRoutineName) activeRoutineName.textContent = routine.name;
+  if (activeExercisesContainer) activeExercisesContainer.innerHTML = '';
 
   routine.exercises.forEach(exName => {
     const exBlock = document.createElement('div');
@@ -235,22 +215,21 @@ function startWorkout(id) {
     exBlock.innerHTML = `
       <h3>${exName}</h3>
       <div class="sets-container"></div>
-      <button class="btn btn-secondary add-set-btn" style="font-size: 0.85rem; padding: 8px;">+ Añadir Serie</button>
+      <button class="btn btn-secondary add-set-btn" style="font-size: 0.85rem; padding: 8px; margin-top: 8px;">+ Añadir Serie</button>
     `;
     
     activeExercisesContainer.appendChild(exBlock);
     
     const setsContainer = exBlock.querySelector('.sets-container');
-    addSetRow(setsContainer); // Primera serie por defecto
+    addSetRow(setsContainer);
 
     exBlock.querySelector('.add-set-btn').addEventListener('click', () => {
       addSetRow(setsContainer);
     });
   });
 
-  // Cambiar vista
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  viewWorkout.classList.add('active');
+  if (viewWorkout) viewWorkout.classList.add('active');
   
   startTimer();
 }
@@ -280,79 +259,82 @@ function addSetRow(container) {
   container.appendChild(row);
 }
 
+// Finalizar y Guardar Entrenamiento
+const finishBtn = document.getElementById('finish-workout-btn');
+if (finishBtn) {
+  finishBtn.addEventListener('click', () => {
+    if (!confirm('¿Finalizar y guardar el entrenamiento?')) return;
+    
+    stopTimer();
+    
+    const history = JSON.parse(localStorage.getItem('gymlog_history')) || [];
+    const workoutData = {
+      id: 'w_' + Date.now(),
+      date: new Date().toISOString(),
+      routineId: activeRoutineId,
+      durationSeconds: workoutSeconds,
+      exercises: []
+    };
 
+    const exerciseBlocks = activeExercisesContainer.querySelectorAll('.active-exercise');
+    
+    exerciseBlocks.forEach(block => {
+      const exName = block.dataset.name;
+      const rows = block.querySelectorAll('.set-row');
+      const completedSets = [];
 
-// Finalizar y Guardar
-// Finalizar y Guardar
-document.getElementById('finish-workout-btn').addEventListener('click', () => {
-  if (!confirm('¿Finalizar y guardar el entrenamiento?')) return;
-  
-  stopTimer();
-  
-  const history = JSON.parse(localStorage.getItem('gymlog_history')) || [];
-  const workoutData = {
-    id: 'w_' + Date.now(),
-    date: new Date().toISOString(),
-    routineId: activeRoutineId,
-    durationSeconds: workoutSeconds,
-    exercises: []
-  };
+      rows.forEach(row => {
+        const isChecked = row.querySelector('.set-checkbox').checked;
+        if (isChecked) {
+          const weightRaw = parseFloat(row.querySelector('.weight-input').value) || 0;
+          const unit = row.querySelector('.unit-input').value;
+          const reps = parseInt(row.querySelector('.reps-input').value) || 0;
+          
+          const weightKg = unit === 'lb' ? weightRaw * 0.453592 : weightRaw;
+          
+          completedSets.push({ 
+            weightRaw: weightRaw, 
+            unit: unit, 
+            weightKg: weightKg, 
+            reps: reps 
+          });
+        }
+      });
 
-  const exerciseBlocks = activeExercisesContainer.querySelectorAll('.active-exercise');
-  
-  exerciseBlocks.forEach(block => {
-    const exName = block.dataset.name;
-    const rows = block.querySelectorAll('.set-row');
-    const completedSets = [];
-
-    // --- AQUÍ INICIA EL BLOQUE REEMPLAZADO ---
-    rows.forEach(row => {
-      const isChecked = row.querySelector('.set-checkbox').checked;
-      if (isChecked) {
-        const weightRaw = parseFloat(row.querySelector('.weight-input').value) || 0;
-        const unit = row.querySelector('.unit-input').value;
-        const reps = parseInt(row.querySelector('.reps-input').value) || 0;
-        
-        // Conversión objetiva a Kg
-        const weightKg = unit === 'lb' ? weightRaw * 0.453592 : weightRaw;
-        
-        completedSets.push({ 
-          weightRaw: weightRaw, 
-          unit: unit, 
-          weightKg: weightKg, 
-          reps: reps 
-        });
+      if (completedSets.length > 0) {
+        workoutData.exercises.push({ name: exName, sets: completedSets });
       }
     });
-    // --- AQUÍ TERMINA EL BLOQUE REEMPLAZADO ---
 
-    if (completedSets.length > 0) {
-      workoutData.exercises.push({ name: exName, sets: completedSets });
+    if (workoutData.exercises.length > 0) {
+      history.push(workoutData);
+      localStorage.setItem('gymlog_history', JSON.stringify(history));
+      alert('Entrenamiento guardado en el historial.');
+    } else {
+      alert('Entrenamiento cancelado: No se registraron series.');
+    }
+
+    switchTab('routines');
+  });
+}
+
+// Cancelar Entrenamiento
+const cancelBtn = document.getElementById('cancel-workout-btn');
+if (cancelBtn) {
+  cancelBtn.addEventListener('click', () => {
+    if (confirm('¿Seguro que deseas cancelar? Los datos de esta sesión se perderán.')) {
+      stopTimer();
+      switchTab('routines');
     }
   });
+}
 
-  if (workoutData.exercises.length > 0) {
-    history.push(workoutData);
-    localStorage.setItem('gymlog_history', JSON.stringify(history));
-    alert('Entrenamiento guardado en el historial.');
-  } else {
-    alert('Entrenamiento cancelado: No se registraron series.');
-  }
-
-  switchTab('routines');
-});
-
-// Cancelar entrenamiento
-document.getElementById('cancel-workout-btn').addEventListener('click', () => {
-  if (confirm('¿Seguro que deseas cancelar? Los datos de esta sesión se perderán.')) {
-    stopTimer();
-    switchTab('routines');
-  }
-});
-
+// 9. Lógica de Métricas
 function renderMetrics() {
   const history = JSON.parse(localStorage.getItem('gymlog_history')) || [];
   
+  if (!historyContainer || !prsContainer) return;
+
   historyContainer.innerHTML = '';
   prsContainer.innerHTML = '';
 
@@ -362,7 +344,6 @@ function renderMetrics() {
     return;
   }
 
-  // 1. Procesar Historial de Sesiones (Volumen por sesión)
   history.slice().reverse().forEach(session => {
     const routine = routines.find(r => r.id === session.routineId);
     const routineName = routine ? routine.name : 'Rutina Eliminada';
@@ -385,7 +366,6 @@ function renderMetrics() {
     historyContainer.appendChild(sessionCard);
   });
 
-  // 2. Procesar Récords Personales (PR por ejercicio)
   const prMap = {};
 
   history.forEach(session => {
@@ -412,5 +392,21 @@ function renderMetrics() {
       <div class="metric-value">Max: ${prMap[exName].weightKg.toFixed(2)} kg x ${prMap[exName].reps} reps</div>
     `;
     prsContainer.appendChild(prCard);
+  });
+}
+
+// 10. Inicialización al cargar la página
+renderRoutines();
+
+// 11. Registro del Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(registration => {
+        console.log('ServiceWorker registrado:', registration.scope);
+      })
+      .catch(error => {
+        console.error('Error al registrar ServiceWorker:', error);
+      });
   });
 }
