@@ -31,6 +31,9 @@ let workoutSeconds = 0;
 let activeRoutineId = null;
 
 // 3. Navegación por pestañas
+const tabWorkoutBtn = document.getElementById('tab-workout-btn');
+if (tabWorkoutBtn) tabWorkoutBtn.addEventListener('click', () => switchTab('workout'));
+
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -46,6 +49,9 @@ function switchTab(tab) {
     if (tabMetricsBtn) tabMetricsBtn.classList.add('active');
     if (viewMetrics) viewMetrics.classList.add('active');
     renderMetrics();
+  } else if (tab === 'workout') {
+    if (tabWorkoutBtn) tabWorkoutBtn.classList.add('active');
+    if (viewWorkout) viewWorkout.classList.add('active');
   }
 }
 
@@ -228,9 +234,11 @@ function startWorkout(id) {
     });
   });
 
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  if (viewWorkout) viewWorkout.classList.add('active');
-  
+// Por estas:
+  if (tabWorkoutBtn) {
+    tabWorkoutBtn.style.display = 'table-cell';
+  }
+  switchTab('workout');
   startTimer();
 }
 
@@ -314,6 +322,8 @@ if (finishBtn) {
       alert('Entrenamiento cancelado: No se registraron series.');
     }
 
+    if (tabWorkoutBtn) tabWorkoutBtn.style.display = 'none';
+    activeRoutineId = null;
     switchTab('routines');
   });
 }
@@ -323,7 +333,8 @@ const cancelBtn = document.getElementById('cancel-workout-btn');
 if (cancelBtn) {
   cancelBtn.addEventListener('click', () => {
     if (confirm('¿Seguro que deseas cancelar? Los datos de esta sesión se perderán.')) {
-      stopTimer();
+      if (tabWorkoutBtn) tabWorkoutBtn.style.display = 'none';
+      activeRoutineId = null;
       switchTab('routines');
     }
   });
@@ -393,6 +404,73 @@ function renderMetrics() {
     `;
     prsContainer.appendChild(prCard);
   });
+
+  // --- NUEVA LÓGICA: Gráficas de progresión de volumen por ejercicio ---
+  
+  // 1. Agrupar el volumen total por ejercicio y fecha
+  const volumeData = {};
+  
+  history.slice().reverse().forEach(session => {
+    // Formato corto de fecha (ej. "15 oct")
+    const dateStr = new Date(session.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    
+    session.exercises.forEach(ex => {
+      let dailyVolume = 0;
+      ex.sets.forEach(set => {
+        dailyVolume += (set.weightKg * set.reps);
+      });
+      
+      if (dailyVolume > 0) {
+        if (!volumeData[ex.name]) volumeData[ex.name] = [];
+        volumeData[ex.name].push({ date: dateStr, volume: dailyVolume });
+      }
+    });
+  });
+
+  // 2. Renderizar las gráficas en el DOM
+  const chartKeys = Object.keys(volumeData).sort();
+  
+  if (chartKeys.length > 0) {
+    const chartsTitle = document.createElement('h2');
+    chartsTitle.className = 'chart-section-title';
+    chartsTitle.textContent = 'Progresión de Volumen por Ejercicio';
+    viewMetrics.appendChild(chartsTitle);
+    
+    const chartsWrapper = document.createElement('div');
+    chartsWrapper.className = 'metrics-list';
+    
+    chartKeys.forEach(exName => {
+      const dataPoints = volumeData[exName];
+      const maxVolume = Math.max(...dataPoints.map(d => d.volume));
+      
+      let barsHtml = '';
+      dataPoints.forEach(point => {
+        // Cálculo porcentual para el ancho de la barra CSS
+        const widthPercent = maxVolume > 0 ? (point.volume / maxVolume) * 100 : 0;
+        barsHtml += `
+          <div class="chart-bar-wrapper">
+            <span class="chart-label">${point.date}</span>
+            <div class="chart-bar-bg">
+              <div class="chart-bar" style="width: ${widthPercent}%;"></div>
+              <span class="chart-value">${point.volume.toFixed(1)} kg</span>
+            </div>
+          </div>
+        `;
+      });
+
+      const chartCard = document.createElement('div');
+      chartCard.className = 'metric-card';
+      chartCard.innerHTML = `
+        <h3>${exName}</h3>
+        <div class="chart-container">
+          ${barsHtml}
+        </div>
+      `;
+      chartsWrapper.appendChild(chartCard);
+    });
+    
+    viewMetrics.appendChild(chartsWrapper);
+  }
 }
 
 // 10. Inicialización al cargar la página
