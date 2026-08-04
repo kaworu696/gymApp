@@ -213,13 +213,47 @@ function startWorkout(id) {
   if (activeRoutineName) activeRoutineName.textContent = routine.name;
   if (activeExercisesContainer) activeExercisesContainer.innerHTML = '';
 
+  // Cargar datos históricos para sugerencias y PRs
+  const history = JSON.parse(localStorage.getItem('gymlog_history')) || [];
+  const notesData = JSON.parse(localStorage.getItem('gymlog_notes')) || {};
+
+  // Función interna para obtener PR de un ejercicio
+  const getPR = (exName) => {
+    let maxKg = 0; let bestReps = 0;
+    history.forEach(s => s.exercises.forEach(e => {
+      if (e.name === exName) {
+        e.sets.forEach(set => {
+          if (set.weightKg > maxKg) { maxKg = set.weightKg; bestReps = set.reps; }
+        });
+      }
+    }));
+    return maxKg > 0 ? `${maxKg.toFixed(2)}kg x ${bestReps}` : null;
+  };
+
+  // Función interna para obtener las series del último entrenamiento
+  const getLastSets = (exName) => {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const ex = history[i].exercises.find(e => e.name === exName);
+      if (ex) return ex.sets;
+    }
+    return [];
+  };
+
   routine.exercises.forEach(exName => {
     const exBlock = document.createElement('div');
     exBlock.className = 'active-exercise';
     exBlock.dataset.name = exName;
     
+    const pr = getPR(exName);
+    const savedNote = notesData[exName] || '';
+    const lastSets = getLastSets(exName);
+    
     exBlock.innerHTML = `
-      <h3>${exName}</h3>
+      <div class="exercise-header">
+        <h3>${exName}</h3>
+        ${pr ? `<span class="pr-badge">Max: ${pr}</span>` : ''}
+      </div>
+      <textarea class="exercise-note" data-ex="${exName}" placeholder="Notas (Ej. Controlar fase excéntrica, maximizar tensión mecánica en elongación, subir peso...)" rows="2">${savedNote}</textarea>
       <div class="sets-container"></div>
       <button class="btn btn-secondary add-set-btn" style="font-size: 0.85rem; padding: 8px; margin-top: 8px;">+ Añadir Serie</button>
     `;
@@ -227,14 +261,26 @@ function startWorkout(id) {
     activeExercisesContainer.appendChild(exBlock);
     
     const setsContainer = exBlock.querySelector('.sets-container');
-    addSetRow(setsContainer);
+    
+    // Autocompletar series basadas en el último entrenamiento
+    if (lastSets.length > 0) {
+      lastSets.forEach(set => addSetRow(setsContainer, set));
+    } else {
+      addSetRow(setsContainer);
+    }
 
     exBlock.querySelector('.add-set-btn').addEventListener('click', () => {
       addSetRow(setsContainer);
     });
+
+    // Evento para guardar notas automáticamente
+    exBlock.querySelector('.exercise-note').addEventListener('change', (e) => {
+      const currentNotes = JSON.parse(localStorage.getItem('gymlog_notes')) || {};
+      currentNotes[e.target.dataset.ex] = e.target.value.trim();
+      localStorage.setItem('gymlog_notes', JSON.stringify(currentNotes));
+    });
   });
 
-// Por estas:
   if (tabWorkoutBtn) {
     tabWorkoutBtn.style.display = 'table-cell';
   }
@@ -242,19 +288,23 @@ function startWorkout(id) {
   startTimer();
 }
 
-function addSetRow(container) {
+function addSetRow(container, prefillData = null) {
   const setNumber = container.children.length + 1;
   const row = document.createElement('div');
   row.className = 'set-row';
   
+  const wVal = prefillData ? prefillData.weightRaw : '';
+  const rVal = prefillData ? prefillData.reps : '';
+  const uVal = prefillData ? prefillData.unit : 'kg';
+  
   row.innerHTML = `
     <span>${setNumber}</span>
-    <input type="number" class="weight-input" placeholder="Peso" min="0" step="0.25">
+    <input type="number" class="weight-input" placeholder="Peso" min="0" step="0.25" value="${wVal}">
     <select class="unit-input">
-      <option value="kg">kg</option>
-      <option value="lb">lb</option>
+      <option value="kg" ${uVal === 'kg' ? 'selected' : ''}>kg</option>
+      <option value="lb" ${uVal === 'lb' ? 'selected' : ''}>lb</option>
     </select>
-    <input type="number" class="reps-input" placeholder="Reps" min="0" step="1">
+    <input type="number" class="reps-input" placeholder="Reps" min="0" step="1" value="${rVal}">
     <input type="checkbox" class="set-checkbox">
   `;
 
@@ -346,8 +396,11 @@ function renderMetrics() {
   
   if (!historyContainer || !prsContainer) return;
 
+  // Limpieza inicial segura
   historyContainer.innerHTML = '';
   prsContainer.innerHTML = '';
+  const existingChartSection = document.getElementById('chart-section-wrapper');
+  if (existingChartSection) existingChartSection.remove();
 
   if (history.length === 0) {
     historyContainer.innerHTML = '<p class="empty-msg">No hay sesiones registradas.</p>';
@@ -355,17 +408,24 @@ function renderMetrics() {
     return;
   }
 
+  // Renderizado del Historial Expandible
   history.slice().reverse().forEach(session => {
     const routine = routines.find(r => r.id === session.routineId);
     const routineName = routine ? routine.name : 'Rutina Eliminada';
     const dateStr = new Date(session.date).toLocaleDateString();
     
     let totalVolumeKg = 0;
+    let detailsHtml = '<div class="session-details-content">';
+    
     session.exercises.forEach(ex => {
-      ex.sets.forEach(set => {
+      detailsHtml += `<div class="session-details-row"><strong>${ex.name}</strong><br>`;
+      ex.sets.forEach((set, i) => {
         totalVolumeKg += (set.weightKg * set.reps);
+        detailsHtml += `<span class="set-pill">S${i+1}: ${set.weightRaw}${set.unit} x ${set.reps}</span>`;
       });
+      detailsHtml += `</div>`;
     });
+    detailsHtml += '</div>';
 
     const sessionCard = document.createElement('div');
     sessionCard.className = 'metric-card';
@@ -373,12 +433,16 @@ function renderMetrics() {
       <h3>${routineName} - ${dateStr}</h3>
       <div class="metric-value">Volumen Total: ${totalVolumeKg.toFixed(2)} kg</div>
       <div style="font-size: 0.8rem; color: var(--text-secondary);">Duración: ${formatTime(session.durationSeconds)}</div>
+      <details class="session-details">
+        <summary>Desplegar ejercicios</summary>
+        ${detailsHtml}
+      </details>
     `;
     historyContainer.appendChild(sessionCard);
   });
 
+  // Renderizado de PRs Globales
   const prMap = {};
-
   history.forEach(session => {
     session.exercises.forEach(ex => {
       ex.sets.forEach(set => {
@@ -392,33 +456,26 @@ function renderMetrics() {
   const prKeys = Object.keys(prMap);
   if (prKeys.length === 0) {
     prsContainer.innerHTML = '<p class="empty-msg">No hay récords calculables.</p>';
-    return;
+  } else {
+    prKeys.sort().forEach(exName => {
+      const prCard = document.createElement('div');
+      prCard.className = 'metric-card';
+      prCard.innerHTML = `
+        <h3>${exName}</h3>
+        <div class="metric-value">Max: ${prMap[exName].weightKg.toFixed(2)} kg x ${prMap[exName].reps} reps</div>
+      `;
+      prsContainer.appendChild(prCard);
+    });
   }
 
-  prKeys.sort().forEach(exName => {
-    const prCard = document.createElement('div');
-    prCard.className = 'metric-card';
-    prCard.innerHTML = `
-      <h3>${exName}</h3>
-      <div class="metric-value">Max: ${prMap[exName].weightKg.toFixed(2)} kg x ${prMap[exName].reps} reps</div>
-    `;
-    prsContainer.appendChild(prCard);
-  });
-
-  // --- NUEVA LÓGICA: Gráficas de progresión de volumen por ejercicio ---
-  
-  // 1. Agrupar el volumen total por ejercicio y fecha
+  // Procesamiento y Renderizado de Gráficas Verticales Selectivas
   const volumeData = {};
-  
-  history.slice().reverse().forEach(session => {
-    // Formato corto de fecha (ej. "15 oct")
+  // Se itera en orden cronológico directo para que la gráfica crezca de izquierda a derecha
+  history.forEach(session => {
     const dateStr = new Date(session.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-    
     session.exercises.forEach(ex => {
       let dailyVolume = 0;
-      ex.sets.forEach(set => {
-        dailyVolume += (set.weightKg * set.reps);
-      });
+      ex.sets.forEach(set => dailyVolume += (set.weightKg * set.reps));
       
       if (dailyVolume > 0) {
         if (!volumeData[ex.name]) volumeData[ex.name] = [];
@@ -427,49 +484,61 @@ function renderMetrics() {
     });
   });
 
-  // 2. Renderizar las gráficas en el DOM
   const chartKeys = Object.keys(volumeData).sort();
   
   if (chartKeys.length > 0) {
+    const wrapper = document.createElement('div');
+    wrapper.id = 'chart-section-wrapper';
+    
     const chartsTitle = document.createElement('h2');
     chartsTitle.className = 'chart-section-title';
-    chartsTitle.textContent = 'Progresión de Volumen por Ejercicio';
-    viewMetrics.appendChild(chartsTitle);
+    chartsTitle.style.marginTop = '32px';
+    chartsTitle.textContent = 'Progresión de Volumen';
     
-    const chartsWrapper = document.createElement('div');
-    chartsWrapper.className = 'metrics-list';
+    const chartCard = document.createElement('div');
+    chartCard.className = 'metric-card';
+
+    const selectHtml = `<select id="chart-exercise-selector" class="chart-selector">
+      ${chartKeys.map(k => `<option value="${k}">${k}</option>`).join('')}
+    </select>`;
+
+    const chartRenderArea = document.createElement('div');
+    chartRenderArea.id = 'chart-render-area';
+
+    chartCard.innerHTML = selectHtml;
+    chartCard.appendChild(chartRenderArea);
     
-    chartKeys.forEach(exName => {
+    wrapper.appendChild(chartsTitle);
+    wrapper.appendChild(chartCard);
+    viewMetrics.appendChild(wrapper);
+
+    const selector = document.getElementById('chart-exercise-selector');
+
+    const drawVerticalChart = (exName) => {
       const dataPoints = volumeData[exName];
       const maxVolume = Math.max(...dataPoints.map(d => d.volume));
-      
-      let barsHtml = '';
+
+      let barsHtml = '<div class="vertical-chart-container">';
       dataPoints.forEach(point => {
-        // Cálculo porcentual para el ancho de la barra CSS
-        const widthPercent = maxVolume > 0 ? (point.volume / maxVolume) * 100 : 0;
+        const heightPercent = maxVolume > 0 ? (point.volume / maxVolume) * 100 : 0;
         barsHtml += `
-          <div class="chart-bar-wrapper">
-            <span class="chart-label">${point.date}</span>
-            <div class="chart-bar-bg">
-              <div class="chart-bar" style="width: ${widthPercent}%;"></div>
-              <span class="chart-value">${point.volume.toFixed(1)} kg</span>
-            </div>
+          <div class="v-chart-bar-wrapper">
+            <span class="v-chart-value">${Math.round(point.volume)}</span>
+            <div class="v-chart-bar" style="height: ${heightPercent}%;"></div>
+            <span class="v-chart-label">${point.date}</span>
           </div>
         `;
       });
+      barsHtml += '</div>';
+      chartRenderArea.innerHTML = barsHtml;
+    };
 
-      const chartCard = document.createElement('div');
-      chartCard.className = 'metric-card';
-      chartCard.innerHTML = `
-        <h3>${exName}</h3>
-        <div class="chart-container">
-          ${barsHtml}
-        </div>
-      `;
-      chartsWrapper.appendChild(chartCard);
+    // Inicializar con el primer ejercicio disponible
+    drawVerticalChart(chartKeys[0]);
+
+    selector.addEventListener('change', (e) => {
+      drawVerticalChart(e.target.value);
     });
-    
-    viewMetrics.appendChild(chartsWrapper);
   }
 }
 
