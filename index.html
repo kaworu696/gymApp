@@ -77,13 +77,20 @@
     </section>
 
     <!-- VISTA 4: Métricas y Récords -->
-    <section id="view-metrics" class="view">
-      <h2>Historial de Sesiones</h2>
-      <div id="history-container" class="metrics-list"></div>
+        <section id="view-metrics" class="view">
+          <h2>Historial de Sesiones</h2>
+          
+          <!-- Nuevos botones de funcionalidad -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <button id="export-btn" class="btn btn-secondary">Exportar Historial</button>
+            <button id="unify-btn" class="btn btn-secondary" style="border-color: var(--danger-color); color: var(--danger-color);">Unificar Ejercicio</button>
+          </div>
 
-      <h2 style="margin-top: 24px;">Récords Personales (PR)</h2>
-      <div id="prs-container" class="metrics-list"></div>
-    </section>
+          <div id="history-container" class="metrics-list"></div>
+
+          <h2 style="margin-top: 24px;">Récords Personales (PR)</h2>
+          <div id="prs-container" class="metrics-list"></div>
+        </section>
   </main>
 
   <script src="app.js"></script>

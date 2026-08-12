@@ -221,7 +221,7 @@ input[type="text"]:focus {
 /* Modificación de la cuadrícula de series */
 .set-row {
   display: grid;
-  grid-template-columns: 0.5fr 2fr 1.5fr 1.5fr 0.5fr;
+  grid-template-columns: 0.5fr 2fr 1.5fr 1.5fr 0.5fr 0.5fr; /* 6 columnas */
   gap: 6px;
   align-items: center;
   margin-bottom: 10px;

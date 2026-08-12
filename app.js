@@ -298,7 +298,7 @@ function addSetRow(container, prefillData = null) {
   const uVal = prefillData ? prefillData.unit : 'kg';
   
   row.innerHTML = `
-    <span>${setNumber}</span>
+    <span class="set-number">${setNumber}</span>
     <input type="number" class="weight-input" placeholder="Peso" min="0" step="0.25" value="${wVal}">
     <select class="unit-input">
       <option value="kg" ${uVal === 'kg' ? 'selected' : ''}>kg</option>
@@ -306,12 +306,24 @@ function addSetRow(container, prefillData = null) {
     </select>
     <input type="number" class="reps-input" placeholder="Reps" min="0" step="1" value="${rVal}">
     <input type="checkbox" class="set-checkbox">
+    <button type="button" class="btn-icon delete-set-btn" style="font-size: 1.2rem;">&times;</button>
   `;
 
   const checkbox = row.querySelector('.set-checkbox');
   checkbox.addEventListener('change', (e) => {
     if (e.target.checked) row.classList.add('set-completed');
     else row.classList.remove('set-completed');
+  });
+
+  // Lógica para eliminar la serie
+  const deleteBtn = row.querySelector('.delete-set-btn');
+  deleteBtn.addEventListener('click', () => {
+    row.remove();
+    // Renumerar las series existentes
+    const remainingRows = container.querySelectorAll('.set-row');
+    remainingRows.forEach((r, index) => {
+      r.querySelector('.set-number').textContent = index + 1;
+    });
   });
 
   container.appendChild(row);
@@ -555,5 +567,70 @@ if ('serviceWorker' in navigator) {
       .catch(error => {
         console.error('Error al registrar ServiceWorker:', error);
       });
+  });
+}
+
+
+
+// 12. Exportar Datos
+const exportBtn = document.getElementById('export-btn');
+if (exportBtn) {
+  exportBtn.addEventListener('click', () => {
+    const backupData = {
+      routines: JSON.parse(localStorage.getItem('gymlog_routines')) || [],
+      history: JSON.parse(localStorage.getItem('gymlog_history')) || [],
+      notes: JSON.parse(localStorage.getItem('gymlog_notes')) || {}
+    };
+    
+    const dataStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gymlog_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}
+
+// 13. Unificación de Datos (Ejecución en Móvil)
+const unifyBtn = document.getElementById('unify-btn');
+if (unifyBtn) {
+  unifyBtn.addEventListener('click', () => {
+    const nombreIncorrecto = prompt("Ingresa el nombre EXACTO a reemplazar:");
+    if (!nombreIncorrecto) return;
+    
+    const nombreCorrecto = prompt("Ingresa el nombre EXACTO que se mantendrá:");
+    if (!nombreCorrecto) return;
+
+    let history = JSON.parse(localStorage.getItem('gymlog_history')) || [];
+    history.forEach(session => {
+      session.exercises.forEach(ex => {
+        if (ex.name === nombreIncorrecto) ex.name = nombreCorrecto;
+      });
+    });
+    localStorage.setItem('gymlog_history', JSON.stringify(history));
+
+    let routines = JSON.parse(localStorage.getItem('gymlog_routines')) || [];
+    routines.forEach(routine => {
+      const index = routine.exercises.indexOf(nombreIncorrecto);
+      if (index !== -1) routine.exercises[index] = nombreCorrecto;
+    });
+    localStorage.setItem('gymlog_routines', JSON.stringify(routines));
+
+    let notes = JSON.parse(localStorage.getItem('gymlog_notes')) || {};
+    if (notes[nombreIncorrecto]) {
+      notes[nombreCorrecto] = notes[nombreCorrecto] 
+        ? notes[nombreCorrecto] + " | " + notes[nombreIncorrecto] 
+        : notes[nombreIncorrecto];
+      delete notes[nombreIncorrecto];
+      localStorage.setItem('gymlog_notes', JSON.stringify(notes));
+    }
+
+    alert(`Se unificaron los datos de "${nombreIncorrecto}" a "${nombreCorrecto}".`);
+    location.reload();
   });
 }
