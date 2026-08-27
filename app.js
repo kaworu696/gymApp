@@ -24,10 +24,15 @@ const activeRoutineName = document.getElementById('active-routine-name');
 const historyContainer = document.getElementById('history-container');
 const prsContainer = document.getElementById('prs-container');
 
+
+
 // Variables de estado
 let timerInterval;
 let startTime = 0;
 let workoutSeconds = 0;
+let activeRoutineId = null;
+
+let editingRoutineId = null; // Nueva variable para controlar la edición
 let activeRoutineId = null;
 
 // 3. Navegación por pestañas
@@ -89,6 +94,7 @@ if (initialRemoveBtn) {
 }
 
 // 5. Lógica para Guardar una Rutina
+// 5. Lógica para Guardar/Editar una Rutina
 if (routineForm) {
   routineForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -106,13 +112,24 @@ if (routineForm) {
       return;
     }
 
-    const newRoutine = {
-      id: 'r_' + Date.now(),
-      name: routineName,
-      exercises: exercises
-    };
+    if (editingRoutineId) {
+      // Editar rutina existente
+      const index = routines.findIndex(r => r.id === editingRoutineId);
+      if (index !== -1) {
+        routines[index].name = routineName;
+        routines[index].exercises = exercises;
+      }
+      editingRoutineId = null;
+    } else {
+      // Crear nueva rutina
+      const newRoutine = {
+        id: 'r_' + Date.now(),
+        name: routineName,
+        exercises: exercises
+      };
+      routines.push(newRoutine);
+    }
 
-    routines.push(newRoutine);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(routines));
     
     routineForm.reset();
@@ -169,10 +186,37 @@ function renderRoutines() {
       }
     });
 
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Editar Rutina';
+    editBtn.className = 'btn btn-secondary';
+    editBtn.style.marginTop = '8px';
+    
+    editBtn.addEventListener('click', () => {
+      editingRoutineId = routine.id;
+      document.getElementById('routine-name').value = routine.name;
+      
+      exerciseInputsContainer.innerHTML = '';
+      routine.exercises.forEach(ex => {
+        const row = document.createElement('div');
+        row.className = 'exercise-input-row';
+        row.innerHTML = `
+          <input type="text" class="exercise-name-input" value="${ex}" required>
+          <button type="button" class="btn-icon remove-exercise-btn">&times;</button>
+        `;
+        row.querySelector('.remove-exercise-btn').addEventListener('click', () => row.remove());
+        exerciseInputsContainer.appendChild(row);
+      });
+      
+      switchTab('create');
+    });
+
     card.appendChild(title);
     card.appendChild(list);
     card.appendChild(startBtn);
+    card.appendChild(editBtn); // Nuevo botón agregado
     card.appendChild(deleteBtn);
+
+
     
     routinesList.appendChild(card);
   });
@@ -420,40 +464,59 @@ function renderMetrics() {
     return;
   }
 
-  // Renderizado del Historial Expandible
-  history.slice().reverse().forEach(session => {
-    const routine = routines.find(r => r.id === session.routineId);
-    const routineName = routine ? routine.name : 'Rutina Eliminada';
-    const dateStr = new Date(session.date).toLocaleDateString();
-    
-    let totalVolumeKg = 0;
-    let detailsHtml = '<div class="session-details-content">';
-    
-    session.exercises.forEach(ex => {
-      detailsHtml += `<div class="session-details-row"><strong>${ex.name}</strong><br>`;
-      ex.sets.forEach((set, i) => {
-        totalVolumeKg += (set.weightKg * set.reps);
-        detailsHtml += `<span class="set-pill">S${i+1}: ${set.weightRaw}${set.unit} x ${set.reps}</span>`;
+// Renderizado del Historial Expandible con Límite
+  let isHistoryExpanded = false;
+  const renderHistoryList = () => {
+    historyContainer.innerHTML = '';
+    const reversedHistory = history.slice().reverse();
+    const displayList = isHistoryExpanded ? reversedHistory : reversedHistory.slice(0, 3);
+
+    displayList.forEach(session => {
+      const routine = routines.find(r => r.id === session.routineId);
+      const routineName = routine ? routine.name : 'Rutina Eliminada';
+      const dateStr = new Date(session.date).toLocaleDateString();
+      
+      let totalVolumeKg = 0;
+      let detailsHtml = '<div class="session-details-content">';
+      
+      session.exercises.forEach(ex => {
+        detailsHtml += `<div class="session-details-row"><strong>${ex.name}</strong><br>`;
+        ex.sets.forEach((set, i) => {
+          totalVolumeKg += (set.weightKg * set.reps);
+          detailsHtml += `<span class="set-pill">S${i+1}: ${set.weightRaw}${set.unit} x ${set.reps}</span>`;
+        });
+        detailsHtml += `</div>`;
       });
-      detailsHtml += `</div>`;
+      detailsHtml += '</div>';
+
+      const sessionCard = document.createElement('div');
+      sessionCard.className = 'metric-card';
+      sessionCard.innerHTML = `
+        <h3>${routineName} - ${dateStr}</h3>
+        <div class="metric-value">Volumen Total: ${totalVolumeKg.toFixed(2)} kg</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">Duración: ${formatTime(session.durationSeconds)}</div>
+        <details class="session-details">
+          <summary>Desplegar ejercicios</summary>
+          ${detailsHtml}
+        </details>
+      `;
+      historyContainer.appendChild(sessionCard);
     });
-    detailsHtml += '</div>';
 
-    const sessionCard = document.createElement('div');
-    sessionCard.className = 'metric-card';
-    sessionCard.innerHTML = `
-      <h3>${routineName} - ${dateStr}</h3>
-      <div class="metric-value">Volumen Total: ${totalVolumeKg.toFixed(2)} kg</div>
-      <div style="font-size: 0.8rem; color: var(--text-secondary);">Duración: ${formatTime(session.durationSeconds)}</div>
-      <details class="session-details">
-        <summary>Desplegar ejercicios</summary>
-        ${detailsHtml}
-      </details>
-    `;
-    historyContainer.appendChild(sessionCard);
-  });
+    if (reversedHistory.length > 3) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'btn btn-secondary';
+      toggleBtn.textContent = isHistoryExpanded ? 'Ver menos' : 'Ver todo el historial';
+      toggleBtn.addEventListener('click', () => {
+        isHistoryExpanded = !isHistoryExpanded;
+        renderHistoryList();
+      });
+      historyContainer.appendChild(toggleBtn);
+    }
+  };
+  renderHistoryList();
 
-  // Renderizado de PRs Globales
+  // Renderizado de PRs Globales con Selector
   const prMap = {};
   history.forEach(session => {
     session.exercises.forEach(ex => {
@@ -464,6 +527,36 @@ function renderMetrics() {
       });
     });
   });
+
+  const prKeys = Object.keys(prMap).sort();
+  if (prKeys.length === 0) {
+    prsContainer.innerHTML = '<p class="empty-msg">No hay récords calculables.</p>';
+  } else {
+    const prSelectHtml = `<select id="pr-exercise-selector" class="chart-selector">
+      ${prKeys.map(k => `<option value="${k}">${k}</option>`).join('')}
+    </select>`;
+    
+    const prRenderArea = document.createElement('div');
+    prsContainer.innerHTML = prSelectHtml;
+    prsContainer.appendChild(prRenderArea);
+
+    const renderSelectedPr = (exName) => {
+      if (!prMap[exName]) return;
+      prRenderArea.innerHTML = `
+        <div class="metric-card">
+          <h3>${exName}</h3>
+          <div class="metric-value">Max: ${prMap[exName].weightKg.toFixed(2)} kg x ${prMap[exName].reps} reps</div>
+        </div>
+      `;
+    };
+
+    const prSelector = document.getElementById('pr-exercise-selector');
+    renderSelectedPr(prSelector.value);
+
+    prSelector.addEventListener('change', (e) => {
+      renderSelectedPr(e.target.value);
+    });
+  }
 
   const prKeys = Object.keys(prMap);
   if (prKeys.length === 0) {
@@ -616,8 +709,7 @@ if (unifyBtn) {
 
     let routines = JSON.parse(localStorage.getItem('gymlog_routines')) || [];
     routines.forEach(routine => {
-      const index = routine.exercises.indexOf(nombreIncorrecto);
-      if (index !== -1) routine.exercises[index] = nombreCorrecto;
+      routine.exercises = routine.exercises.map(ex => ex === nombreIncorrecto ? nombreCorrecto : ex);
     });
     localStorage.setItem('gymlog_routines', JSON.stringify(routines));
 
