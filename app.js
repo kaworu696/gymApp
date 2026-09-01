@@ -30,7 +30,6 @@ const prsContainer = document.getElementById('prs-container');
 let timerInterval;
 let startTime = 0;
 let workoutSeconds = 0;
-let activeRoutineId = null;
 
 let editingRoutineId = null; // Nueva variable para controlar la edición
 let activeRoutineId = null;
@@ -558,20 +557,7 @@ function renderMetrics() {
     });
   }
 
-  const prKeys = Object.keys(prMap);
-  if (prKeys.length === 0) {
-    prsContainer.innerHTML = '<p class="empty-msg">No hay récords calculables.</p>';
-  } else {
-    prKeys.sort().forEach(exName => {
-      const prCard = document.createElement('div');
-      prCard.className = 'metric-card';
-      prCard.innerHTML = `
-        <h3>${exName}</h3>
-        <div class="metric-value">Max: ${prMap[exName].weightKg.toFixed(2)} kg x ${prMap[exName].reps} reps</div>
-      `;
-      prsContainer.appendChild(prCard);
-    });
-  }
+ 
 
   // Procesamiento y Renderizado de Gráficas Verticales Selectivas
   const volumeData = {};
